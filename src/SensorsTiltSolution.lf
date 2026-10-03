@@ -1,0 +1,80 @@
+/**
+ * Display three dimensions of accelerometer measurements on the LCD display of the
+ * <a href="https://www.pololu.com/docs/0J86">Pololu 3pi+ 2040 robot</a>. To run this program, first
+ * put the robot in BOOTSEL mode (hold button B while resetting). Then the sequence of commands is
+ * something like this:
+ * ```
+ *     $ cd ~/lf-pico
+ *     $ lfc src/AccelerometerDisplay.lf
+ *     ...
+ *     $ picotool load -x bin/AccelerometerDisplay.elf
+ * ```
+
+ *
+ * This compiles the program, loads it into flash memory on the robot, and begins executing it.
+ *
+ * @author Edward A. Lee
+ */
+target C {
+  platform: "RP2040",
+  single-threaded: true
+}
+
+import Accelerometer from "lib/IMU.lf"
+import Display from "lib/Display.lf"
+import Tilt from "lib/Tilt.lf"
+
+main reactor {
+  a = new Accelerometer()
+  d = new Display()
+  ttilt = new Tilt()
+  timer t(0, 250 msec)
+  a.x, a.y, a.z -> ttilt.x, ttilt.y, ttilt.z
+
+  reaction(t) -> a.trigger {=
+    lf_set(a.trigger, true);
+   
+  =}
+
+// m(1.02) + b = 1
+// m(-0.9836) + b = -1
+// m(2.0036) = 2
+// m = 0.998203234
+
+// (0.998203234)*(-0.9836)+1 = -b
+ // -0.98183270096 + 1 = -b
+// -0.01816729904 = b
+
+// mx + b = 1
+
+// m + b = 1.02
+// -m + b = -0.9836
+// b = 0.0364
+
+// -m + 0.0364 = -0.9836
+// -m = -0.9836 - 0.0364 = -1.02
+// m = 1.02
+
+// 1.02x + 0.0364 = f(x)
+// 1.02x = f(x) - 0.0364
+// x = (f(x) - 0.0364) / 1.02
+
+//x axius 
+//b=
+
+
+
+  reaction(ttilt.roll, ttilt.pitch) -> d.line0, d.line1{=
+    /// TODO: define max string size for line
+    /// based on font you can have 4 or 8 lines
+    static char buf0[17];
+    static char buf1[17];
+
+    snprintf(buf0, 17, "roll:%2.4f", (ttilt.roll->value));
+    snprintf(buf1, 17, "pitch:%2.4f", (ttilt.pitch->value));
+
+    lf_set(d.line0, buf0);
+    lf_set(d.line1, buf1);
+  =}
+}
+

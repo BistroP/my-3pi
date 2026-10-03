@@ -1,0 +1,105 @@
+/**
+ * Template for robot driving lab exercises. This template just periodically switches between a
+ * STOPPED and a DRIVING mode, updating the LCD display on each change of mode.
+ */
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true
+}
+
+import Display from "lib/Display.lf"
+import Motors from "lib/Motors.lf"
+import AngleToDistance from "lib/AngleToDistance.lf"
+import GyroAngle from "lib/IMU.lf"
+
+preamble {=
+  #include <math.h>
+=}
+
+reactor Robot {
+  input drive: bool      // Toggle mode.
+  output notify: string  // Notify of mode change.
+  timer t(0, 250 msec)
+  motor = new Motors()
+  reaction(startup) -> notify {=
+    lf_set(notify, "INIT");
+  =}
+
+
+  initial mode STOPPED {
+    reaction(drive) -> reset(DRIVING), notify, motor.left_power, motor.right_power {=
+      if (drive->value) {
+        lf_set(motor.left_power, 0.1);
+        lf_set(motor.right_power, 0.1);
+        lf_set_mode(DRIVING);
+        lf_set(notify, "DRIVING");
+      }
+    =}
+  }
+
+  mode DRIVING {
+    reaction(drive) -> reset(STOPPED), notify, motor.left_power, motor.right_power  {=
+      if (!drive->value) {
+        lf_set(motor.left_power, -0.1);
+        lf_set(motor.right_power, 0.1);
+        lf_set_mode(STOPPED);
+        lf_set(notify, "STOPPED");
+      }
+    =}
+  }
+}
+
+main reactor {
+  timer t(0, 250 msec)
+  state distance: float = 0.0
+  state first: float = 0.0
+  state angle: float = 0.0
+  state firstAngle: float = 0.0
+  state driving: bool = true
+  robot = new Robot()
+  GyroAngle = new GyroAngle()
+  display = new Display()
+  AngleToDistance = new AngleToDistance()
+  robot.notify -> display.line0
+  reaction(startup) -> robot.drive {=
+    self-> first = 0.0;
+    lf_set(robot.drive, true);
+    self->driving = true;
+  =}
+  reaction(t) -> AngleToDistance.trigger, GyroAngle.trigger {=
+    lf_set(AngleToDistance.trigger, true); // What actually updates the value of AngleToDistance
+    lf_set(GyroAngle.trigger, true); // What actually updates the value of AngleToDistance
+  =}
+
+  reaction(AngleToDistance.left, GyroAngle.z) -> robot.drive, display.line2, display.line1, display.line3{= // My condition for movement is to move 1 M
+    if (self->driving == true) {
+      self->distance += fabs(AngleToDistance.left->value - self->first);
+      self->first = AngleToDistance.left->value;
+      if (self->distance >= 0.5) {
+        lf_set(robot.drive, false);
+        self->driving = false;
+        self->distance = 0;
+      }
+    } else {
+      self->angle += fabs(GyroAngle.z->value - self->firstAngle);
+      self->firstAngle = GyroAngle.z->value;
+      if (self->angle >= 90) {
+        lf_set(robot.drive, true);
+        self->driving = true;
+        self->angle = 0;
+      }
+    }
+    static char buf[17];
+    snprintf(buf, 17, "Distance: %f", self->distance);
+    lf_set(display.line2, buf);
+    static char buf2[17];
+    snprintf(buf2, 17, "Degrees: %f", self->angle);
+    lf_set(display.line1, buf2);
+    static char buf3[17];
+    snprintf(buf3, 17, "Degrees: %f", GyroAngle.z->value);
+    lf_set(display.line3, buf3);
+  =} // My condition for spin is to spin 90 degrees.
+}

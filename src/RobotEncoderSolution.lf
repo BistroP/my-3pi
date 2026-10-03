@@ -1,0 +1,37 @@
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true
+}
+
+import Display from "lib/Display.lf"
+import AngleToDistance from "lib/AngleToDistance.lf" 
+
+main reactor {
+  display = new Display()
+  angleToDistance = new AngleToDistance()
+
+  timer t(0, 1 s)
+
+  reaction(t) -> angleToDistance.trigger {=
+    lf_set(angleToDistance.trigger, true);
+  =}
+
+  reaction(startup) -> display.line0 {=
+    lf_set(display.line0, "ENCODERS:");
+  =}
+
+  reaction(angleToDistance.left) -> display.line1 {=
+    static char buf[17];
+    snprintf(buf, 17, "L: %f", angleToDistance.left->value);
+    lf_set(display.line1, buf);
+  =}
+
+  reaction(angleToDistance.right) -> display.line2 {=
+    static char buf[17];
+    snprintf(buf, 17, "R: %f", angleToDistance.right->value);
+    lf_set(display.line2, buf);
+  =}
+}

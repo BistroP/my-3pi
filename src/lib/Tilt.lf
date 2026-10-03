@@ -1,0 +1,44 @@
+
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true,
+  files: ["../../lf-packages/pololu-3pi-c/robot-lib/"],  // Needed to find display.h
+  cmake-include: ["../../lf-packages/pololu-3pi-c/robot-lib/robot-lib.txt"]  // Needed to find display.h
+}
+
+
+
+
+preamble {=
+  #include <pico/stdlib.h>
+  #include <display.h>        // Do not use "display.h". Doesn't work.
+  #include <math.h>
+=}
+
+
+
+reactor Tilt {
+
+  
+  input x: float // inputs
+  input y: float
+  input z: float
+
+  output roll: float
+  output pitch: float
+  
+
+  // buffer update action
+
+  reaction(x, y, z) -> roll, pitch {=
+    // Fill in your code here
+    lf_set(pitch, atan(y->value/(sqrt(x->value * x->value + z->value * z->value)))*180/3.14);
+    lf_set(roll, atan(x->value/(sqrt(y->value * y->value + z->value * z->value)))*180/3.14);
+  =}
+
+    
+
+}

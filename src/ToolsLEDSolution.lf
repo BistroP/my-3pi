@@ -1,0 +1,34 @@
+target C {
+  platform: {
+    name: "rp2040",
+    board: "pololu_3pi_2040_robot"
+  },
+  single-threaded: true,
+} 
+
+import LED from "LED.lf"
+
+
+preamble {= 
+  #include <hardware/gpio.h>
+=}
+
+
+main reactor {
+
+    timer t(0, 500 ms) 
+    state check: bool = false
+    led = new LED() 
+
+
+  reaction(startup) {=
+    gpio_init(PICO_DEFAULT_LED_PIN);
+    gpio_set_dir(PICO_DEFAULT_LED_PIN, GPIO_OUT);
+  =} 
+
+  reaction(t) -> led.set {=
+    //io_put(PICO_DEFAULT_LED_PIN, n);
+    self->check = !self->check; 
+    lf_set(led.set, self->check);
+  =}
+}

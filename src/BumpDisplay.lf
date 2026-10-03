@@ -12,7 +12,8 @@ target C {
   single-threaded: true
 }
 
-import Bump, Display from <pololu-3pi-c>
+import Bump from "lib/Bump.lf"
+import Display from "lib/Display.lf"
 
 main reactor {
   bump = new Bump()
